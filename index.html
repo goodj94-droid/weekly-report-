@@ -1,0 +1,949 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14237a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Weekly Report">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Weekly Report</title>
+</head>
+<body>
+<style>
+  :root {
+    --navy: #14237a;
+    --navy-soft: #e7eaf7;
+    --brick: #953735;
+    --brick-soft: #f8e9e6;
+    --plan: #eef8e0;
+    --result: #fff1e0;
+    --ink: #1c2233;
+    --muted: #5e6679;
+    --line: #d5dae5;
+    --bg: #eceff5;
+    --card: #ffffff;
+    --warn: #8a4b00;
+    --ok: #1d6b3a;
+    --head: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--body); }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 0 14px 110px; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid #f2c200; outline-offset: 2px; }
+
+  .top { background: var(--navy); color: #fff; padding: 16px 14px 0; }
+  .top-in { max-width: 780px; margin: 0 auto; }
+  .top h1 { font: 700 22px/1.15 var(--head); margin: 0; letter-spacing: .2px; }
+  .top h1 span { color: #ffd84d; }
+  .who { font-size: 13px; opacity: .85; margin-top: 3px; }
+  .save { font-size: 12px; opacity: .75; float: right; margin-top: 4px; }
+  .tabs { display: flex; gap: 4px; margin-top: 14px; }
+  .tabs button { flex: 1; background: transparent; border: 0; color: #c9cff0; padding: 10px 6px 12px; font-weight: 600; border-bottom: 3px solid transparent; cursor: pointer; }
+  .tabs button[aria-selected="true"] { color: #fff; border-bottom-color: #ffd84d; }
+
+  .view { display: none; padding-top: 14px; }
+  .view.on { display: block; }
+
+  .monthbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .monthbar h2 { font: 700 20px var(--head); margin: 0; }
+  .iconbtn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); cursor: pointer; font-size: 18px; }
+
+  .weeks { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 14px; }
+  .wk { border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 7px 4px 8px; text-align: center; cursor: pointer; }
+  .wk b { display: block; font: 700 14px var(--head); }
+  .wk small { display: block; font-size: 11px; color: var(--muted); }
+  .wk .cnt { margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--muted); }
+  .wk .cnt.hit { color: var(--ok); }
+  .wk[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
+  .wk[aria-pressed="true"] small, .wk[aria-pressed="true"] .cnt { color: #d8ddf5; }
+  .wk[aria-pressed="true"] .cnt.hit { color: #9ff0bb; }
+
+  .weekhead { display: flex; justify-content: space-between; align-items: baseline; margin: 4px 2px 10px; }
+  .weekhead h3 { margin: 0; font: 700 16px var(--head); }
+  .weekhead span { font-size: 13px; color: var(--muted); }
+
+  .entry { background: var(--card); border-radius: 12px; margin-bottom: 12px; border: 1px solid var(--line); overflow: hidden; }
+  .ehead { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; }
+  .ehead .d { font: 700 13px var(--head); background: var(--navy-soft); color: var(--navy); border-radius: 6px; padding: 4px 7px; white-space: nowrap; }
+  .ehead .sum { flex: 1; min-width: 0; }
+  .ehead .sum b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ehead .sum small { display: block; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ehead .chev { color: var(--muted); transition: transform .15s; }
+  .entry.open .chev { transform: rotate(180deg); }
+  .ebody { display: none; border-top: 1px solid var(--line); }
+  .entry.open .ebody { display: block; }
+  .half { padding: 10px 12px 12px; }
+  .half.plan { background: var(--plan); border-left: 5px solid var(--navy); }
+  .half.result { background: var(--result); border-left: 5px solid var(--brick); }
+  .half h4 { margin: 0 0 8px; font: 700 13px var(--head); }
+  .plan h4 { color: var(--navy); }
+  .result h4 { color: var(--brick); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .full { grid-column: 1 / -1; }
+  label.f { display: block; font-size: 12px; color: var(--muted); }
+  label.f input, label.f textarea, label.f select, .inp {
+    display: block; width: 100%; margin-top: 3px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; min-height: 40px;
+  }
+  textarea { resize: vertical; min-height: 64px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .warn { font-size: 12px; color: var(--warn); margin-top: 4px; display: none; }
+  .warn.on { display: block; }
+  .warn button, .linkbtn { background: none; border: 0; padding: 0; color: var(--navy); font-weight: 700; text-decoration: underline; cursor: pointer; font-size: 12px; }
+  .midbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #fafbfd; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); gap: 8px; }
+  .datefield { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #fafbfd; flex-wrap: wrap; }
+  .datefield input { padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; }
+
+  .btn { border: 0; border-radius: 10px; padding: 11px 16px; font-weight: 700; cursor: pointer; }
+  .btn.primary { background: var(--navy); color: #fff; }
+  .btn.ghost { background: var(--card); border: 1px dashed #9aa3bb; color: var(--navy); width: 100%; padding: 14px; }
+  .btn.small { padding: 7px 10px; font-size: 13px; }
+  .btn.plain { background: var(--card); border: 1px solid var(--line); }
+  .btn.danger { background: none; color: #a1261f; border: 1px solid #e6c3c0; }
+
+  .empty { text-align: center; color: var(--muted); padding: 22px 10px; background: var(--card); border-radius: 12px; border: 1px solid var(--line); margin-bottom: 12px; }
+
+  .dock { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,.96); border-top: 1px solid var(--line); padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); }
+  .dock-in { max-width: 780px; margin: 0 auto; display: flex; gap: 8px; align-items: center; }
+  .dock .btn.primary { flex: 1; background: var(--brick); padding: 14px; font-size: 15px; }
+  .dock-note { font-size: 12px; color: var(--muted); max-width: 780px; margin: 4px auto 0; text-align: center; }
+
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+  .panel h3 { margin: 0 0 10px; font: 700 16px var(--head); }
+  .panel p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+
+  .rsrow { display: grid; grid-template-columns: 28px 1fr auto; gap: 8px; align-items: start; padding: 10px 0; border-bottom: 1px solid #edf0f5; }
+  .rsrow:last-child { border-bottom: 0; }
+  .rsrow .no { font: 700 13px var(--head); color: var(--muted); padding-top: 10px; text-align: right; }
+  .rsrow .fields { display: grid; gap: 6px; }
+  .rsrow .acts { display: flex; flex-direction: column; gap: 4px; }
+  .rsrow .acts button { width: 34px; height: 30px; border-radius: 6px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+  .addrow { display: flex; gap: 8px; }
+  .addrow input { flex: 1; }
+
+  .matrix { overflow-x: auto; }
+  .matrix table { border-collapse: collapse; font-size: 12px; min-width: 640px; }
+  .matrix th, .matrix td { border: 1px solid var(--line); padding: 3px 5px; text-align: center; }
+  .matrix td.n { text-align: left; white-space: nowrap; }
+  .matrix th.m { background: var(--navy); color: #fff; }
+  .matrix td.x { color: var(--brick); font-weight: 700; }
+  .matrix tr.tot td { font-weight: 700; background: #f4f6fa; }
+  .matrix .under { color: var(--warn); }
+  .matrix .met { color: var(--ok); }
+
+  .toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 9px 14px; border-radius: 8px; font-size: 13px; display: none; z-index: 10; max-width: 90%; text-align: center; }
+  .toast.on { display: block; }
+
+  @media (max-width: 420px) {
+    .grid2 { grid-template-columns: 1fr; }
+    .wk small { font-size: 10px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="top">
+  <div class="top-in">
+    <span class="save" id="saveState"></span>
+    <h1>Weekly Planning <span>&amp;</span> Report</h1>
+    <div class="who" id="who"></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="lap" aria-selected="true">Laporan</button>
+      <button role="tab" data-tab="rs" aria-selected="false">Daftar RS</button>
+      <button role="tab" data-tab="set" aria-selected="false">Pengaturan</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- LAPORAN -->
+  <section class="view on" id="v-lap">
+    <div class="monthbar">
+      <button class="iconbtn" id="prevM" aria-label="Bulan sebelumnya">‹</button>
+      <h2 id="monthLabel"></h2>
+      <button class="iconbtn" id="nextM" aria-label="Bulan berikutnya">›</button>
+    </div>
+    <div class="weeks" id="weeks"></div>
+    <div class="weekhead"><h3 id="weekTitle"></h3><span id="weekRange"></span></div>
+    <div id="entries"></div>
+    <button class="btn ghost" id="addEntry">+ Tambah kunjungan</button>
+  </section>
+
+  <!-- DAFTAR RS -->
+  <section class="view" id="v-rs">
+    <div class="panel">
+      <h3>Rumah sakit binaan</h3>
+      <p>Nama di sini dipakai untuk sheet LIST RS. Kolom minggu otomatis diberi X kalau RS ini ada di Call Result minggu tersebut.</p>
+      <div class="addrow">
+        <input class="inp" id="newRs" placeholder="Nama RS baru, mis. RS Panti Rapih">
+        <button class="btn primary" id="addRs">Tambah</button>
+      </div>
+      <div id="rsList" style="margin-top:8px"></div>
+    </div>
+    <div class="panel">
+      <h3 id="matrixTitle">Rekap kunjungan</h3>
+      <p>Pratinjau sheet LIST RS untuk periode 3 bulan.</p>
+      <div class="matrix" id="matrix"></div>
+    </div>
+  </section>
+
+  <!-- PENGATURAN -->
+  <section class="view" id="v-set">
+    <div class="panel">
+      <h3>Identitas laporan</h3>
+      <div class="grid2">
+        <label class="f">Nama<input id="pName"></label>
+        <label class="f">Area<input id="pArea"></label>
+        <label class="f">Target kunjungan per minggu<input id="pTarget" type="number" min="1" inputmode="numeric"></label>
+        <label class="f">Periode LIST RS mulai
+          <select id="pStart"></select>
+        </label>
+      </div>
+      <div class="hint">LIST RS berisi 3 bulan mulai dari bulan ini.</div>
+    </div>
+    <div class="panel">
+      <h3>Cadangan data</h3>
+      <p>Data tersimpan otomatis di HP ini. Data bisa hilang kalau cache Chrome dihapus atau HP ganti, jadi simpan file cadangan tiap akhir minggu.</p>
+      <p id="lastBackup"></p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px">
+        <button class="btn primary small" id="saveBackupFile">Simpan file cadangan</button>
+        <label class="btn plain small" for="importFile" style="display:inline-block">Pulihkan dari file</label>
+        <input type="file" id="importFile" accept=".json,application/json,text/plain" style="display:none">
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap">
+        <button class="btn plain small" id="copyBackup">Salin cadangan</button>
+        <button class="btn plain small" id="showImport">Tempel teks cadangan</button>
+      </div>
+      <div id="importBox" style="display:none; margin-top:10px">
+        <textarea class="inp" id="importText" placeholder="Tempel teks cadangan di sini"></textarea>
+        <button class="btn primary small" id="doImport" style="margin-top:8px">Pulihkan data</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Mulai dari kosong</h3>
+      <p>Menghapus semua kunjungan. Daftar RS dan identitas tetap.</p>
+      <button class="btn danger small" id="clearVisits">Hapus semua kunjungan</button>
+    </div>
+  </section>
+</div>
+
+<div class="dock">
+  <div class="dock-in">
+    <button class="btn primary" id="download">Download Excel</button>
+    <button class="btn plain" id="share" style="padding:14px">Kirim</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<datalist id="dl-rs"></datalist>
+<datalist id="dl-pos">
+  <option value="ATEM"><option value="ICU"><option value="NICU"><option value="IGD"><option value="OK / IBS">
+  <option value="Management"><option value="Purchasing"><option value="Direktur"><option value="Kepala Ruang"><option value="Dokter Anestesi">
+</datalist>
+
+<script>
+// ===== Minimal XLSX writer (tanpa library) =====
+const XB = (() => {
+  const enc = new TextEncoder();
+  const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+  function crc32(buf) {
+    let c = 0xffffffff;
+    for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  }
+  function zip(files) {
+    const parts = [], central = [];
+    let offset = 0;
+    for (const f of files) {
+      const name = enc.encode(f.name);
+      const data = enc.encode(f.data);
+      const crc = crc32(data);
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true);
+      lh.setUint16(8, 0, true); lh.setUint16(10, 0, true); lh.setUint16(12, 0x21, true);
+      lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true);
+      lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+      parts.push(new Uint8Array(lh.buffer), name, data);
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true);
+      ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true); ch.setUint16(12, 0, true); ch.setUint16(14, 0x21, true);
+      ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true);
+      ch.setUint16(28, name.length, true); ch.setUint32(42, offset, true);
+      central.push(new Uint8Array(ch.buffer), name);
+      offset += 30 + name.length + data.length;
+    }
+    const cdSize = central.reduce((a, b) => a + b.length, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true);
+    end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+    end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+    const all = [...parts, ...central, new Uint8Array(end.buffer)];
+    const out = new Uint8Array(all.reduce((a, b) => a + b.length, 0));
+    let p = 0;
+    for (const a of all) { out.set(a, p); p += a.length; }
+    return out;
+  }
+
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+  const colL = (c) => { let s = ""; while (c > 0) { const m = (c - 1) % 26; s = String.fromCharCode(65 + m) + s; c = Math.floor((c - 1) / 26); } return s; };
+  const ref = (r, c) => colL(c) + r;
+
+  // ---- style registry ----
+  function Styles() {
+    const fonts = [], fills = ['<fill><patternFill patternType="none"/></fill>', '<fill><patternFill patternType="gray125"/></fill>'],
+      borders = [], xfs = [];
+    const fontIdx = {}, fillIdx = {}, borderIdx = {}, xfIdx = {};
+    const get = (list, idx, key, xml) => (key in idx ? idx[key] : (idx[key] = list.push(xml) - 1));
+    const font = ({ name = "Calibri", sz = 11, b = false, color }) =>
+      get(fonts, fontIdx, [name, sz, b, color].join("|"),
+        `<font>${b ? "<b/>" : ""}<sz val="${sz}"/>${color ? `<color rgb="FF${color}"/>` : '<color theme="1"/>'}<name val="${esc(name)}"/><family val="2"/></font>`);
+    const fill = (rgb) => rgb ? get(fills, fillIdx, rgb,
+      `<fill><patternFill patternType="solid"><fgColor rgb="FF${rgb}"/><bgColor indexed="64"/></patternFill></fill>`) : 0;
+    const side = (tag, st) => st ? `<${tag} style="${st}"><color indexed="64"/></${tag}>` : `<${tag}/>`;
+    const border = (b = [null, null, null, null]) => get(borders, borderIdx, b.join("|"),
+      `<border>${side("left", b[0])}${side("right", b[1])}${side("top", b[2])}${side("bottom", b[3])}<diagonal/></border>`);
+    font({}); border();
+    xfs.push('<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>');
+    function style(o = {}) {
+      const f = font(o.font || {}), fi = fill(o.fill), bo = border(o.border), nf = o.date ? 164 : 0;
+      const al = (o.h || o.v || o.wrap)
+        ? `<alignment${o.h ? ` horizontal="${o.h}"` : ""}${o.v ? ` vertical="${o.v}"` : ""}${o.wrap ? ' wrapText="1"' : ""}/>` : "";
+      const xml = `<xf numFmtId="${nf}" fontId="${f}" fillId="${fi}" borderId="${bo}" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">${al}</xf>`;
+      return get(xfs, xfIdx, xml, al ? xml : xml.replace("></xf>", "/>"));
+    }
+    function xml() {
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts><fonts count="${fonts.length}">${fonts.join("")}</fonts><fills count="${fills.length}">${fills.join("")}</fills><borders count="${borders.length}">${borders.join("")}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${xfs.length}">${xfs.join("")}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+    }
+    return { style, xml };
+  }
+
+  function Sheet(name) {
+    const cells = new Map(), heights = {}, merges = [];
+    let cols = [], printArea = null, landscape = false;
+    return {
+      name,
+      set(r, c, v, s, extra = {}) { cells.set(r * 100000 + c, { r, c, v, s, ...extra }); },
+      height(r, h) { heights[r] = h; },
+      merge(r1, c1, r2, c2) { merges.push(`${ref(r1, c1)}:${ref(r2, c2)}`); },
+      cols(list) { cols = list; },
+      print(area, land) { printArea = area; landscape = land; },
+      get printArea() { return printArea; },
+      xml() {
+        const rows = {};
+        for (const cell of cells.values()) (rows[cell.r] = rows[cell.r] || []).push(cell);
+        const rowNums = [...new Set([...Object.keys(rows), ...Object.keys(heights)].map(Number))].sort((a, b) => a - b);
+        let sd = "";
+        for (const r of rowNums) {
+          const list = (rows[r] || []).sort((a, b) => a.c - b.c);
+          const h = heights[r] ? ` ht="${heights[r]}" customHeight="1"` : "";
+          sd += `<row r="${r}"${h}>`;
+          for (const x of list) {
+            const a = `r="${ref(x.r, x.c)}" s="${x.s}"`;
+            if (x.formula) sd += `<c ${a}><f>${esc(x.formula)}</f><v>${x.v ?? 0}</v></c>`;
+            else if (x.v === null || x.v === undefined || x.v === "") sd += `<c ${a}/>`;
+            else if (typeof x.v === "number") sd += `<c ${a}><v>${x.v}</v></c>`;
+            else sd += `<c ${a} t="inlineStr"><is><t xml:space="preserve">${esc(x.v)}</t></is></c>`;
+          }
+          sd += "</row>";
+        }
+        const colXml = cols.length ? `<cols>${cols.map(([min, max, w]) => `<col min="${min}" max="${max}" width="${w}" customWidth="1"/>`).join("")}</cols>` : "";
+        const mg = merges.length ? `<mergeCells count="${merges.length}">${merges.map((m) => `<mergeCell ref="${m}"/>`).join("")}</mergeCells>` : "";
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/>${colXml}<sheetData>${sd}</sheetData>${mg}<printOptions horizontalCentered="1"/><pageMargins left="0.25" right="0.25" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="${landscape ? "landscape" : "portrait"}" fitToWidth="1" fitToHeight="0"/></worksheet>`;
+      },
+    };
+  }
+
+  function workbook(sheets, styles) {
+    const files = [];
+    files.push({ name: "[Content_Types].xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>` });
+    files.push({ name: "_rels/.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` });
+    const dn = sheets.map((s, i) => s.printArea ? `<definedName name="_xlnm.Print_Area" localSheetId="${i}">'${s.name.replace(/'/g, "''")}'!${s.printArea}</definedName>` : "").join("");
+    files.push({ name: "xl/workbook.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView/></bookViews><sheets>${sheets.map((s, i) => `<sheet name="${esc(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("")}</sheets>${dn ? `<definedNames>${dn}</definedNames>` : ""}<calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>` });
+    files.push({ name: "xl/_rels/workbook.xml.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` });
+    sheets.forEach((s, i) => files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: s.xml() }));
+    files.push({ name: "xl/styles.xml", data: styles.xml() });
+    return zip(files);
+  }
+
+  return { Styles, Sheet, workbook, ref, colL };
+})();
+
+// ===== Pembentuk dokumen sesuai format kantor =====
+const BULAN = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOPEMBER", "DESEMBER"];
+const BULAN_CAP = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+const normName = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
+const weekKey = (y, m, w) => `${y}-${String(m).padStart(2, "0")}-${w}`;
+const excelDate = (iso) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000;
+};
+// bulan-bulan periode LIST RS: [{y, m}] x3 mulai dari bulan awal
+const periodMonths = (y, m) => [0, 1, 2].map((i) => { const t = m - 1 + i; return { y: y + Math.floor(t / 12), m: (t % 12) + 1 }; });
+
+function visitedSet(data, y, m, w) {
+  const wk = data.weeks[weekKey(y, m, w)];
+  const s = new Set();
+  if (wk) for (const e of wk.entries) if (e.resHosp && e.resHosp.trim()) s.add(normName(e.resHosp));
+  return s;
+}
+
+function buildWorkbook(data, expY, expM) {
+  const st = XB.Styles();
+  const sheets = [];
+  const med = "medium", thin = "thin";
+
+  // ---------- LIST RS ----------
+  const L = XB.Sheet("LIST RS");
+  const months = periodMonths(data.profile.startYear, data.profile.startMonth);
+  const hs = data.hospitals;
+  const firstData = 3, lastData = firstData + Math.max(hs.length, 1) - 1;
+  const totalRow = lastData + 1, targetRow = lastData + 2;
+  const monthStart = [3, 8, 13];
+  const bL = (c) => (c === 1 || c === 2 || monthStart.includes(c) || c === 18 ? med : thin);
+  const bR = (c) => (c === 1 || c === 2 || c === 7 || c === 12 || c === 17 || c === 18 ? med : thin);
+  const bT = (r) => (r === 1 || r === totalRow ? med : thin);
+  const bB = (r) => (r === 2 || r === targetRow ? med : thin);
+  const lstyle = (r, c, extra = {}) => st.style({ border: [bL(c), bR(c), bT(r), bB(r)], v: "center", ...extra });
+
+  for (let r = 1; r <= targetRow; r++) for (let c = 1; c <= 18; c++) L.set(r, c, null, lstyle(r, c, { h: c === 1 || (c >= 3 && c <= 17) ? "center" : undefined }));
+  L.set(1, 1, "NO", lstyle(1, 1, { h: "center", font: { b: true } })); L.merge(1, 1, 2, 1);
+  L.set(2, 1, null, lstyle(2, 1, { h: "center", font: { b: true } }));
+  L.set(1, 2, "RUMAH SAKIT", lstyle(1, 2, { h: "center", font: { b: true, sz: 14 } })); L.merge(1, 2, 2, 2);
+  L.set(2, 2, null, lstyle(2, 2, { h: "center", font: { b: true, sz: 14 } }));
+  L.set(1, 18, "KETERANGAN", lstyle(1, 18, { h: "center", font: { b: true } })); L.merge(1, 18, 2, 18);
+  L.set(2, 18, null, lstyle(2, 18, { h: "center", font: { b: true } }));
+  months.forEach((mo, i) => {
+    const c0 = monthStart[i];
+    for (let k = 0; k < 5; k++) {
+      L.set(1, c0 + k, k === 0 ? BULAN[mo.m - 1] : null, lstyle(1, c0 + k, { h: "center", font: { b: true, sz: 12 } }));
+      L.set(2, c0 + k, `MG ${k + 1}`, lstyle(2, c0 + k, { h: "center", font: { b: true } }));
+    }
+    L.merge(1, c0, 1, c0 + 4);
+  });
+  const sets = months.map((mo) => [1, 2, 3, 4, 5].map((w) => visitedSet(data, mo.y, mo.m, w)));
+  hs.forEach((h, i) => {
+    const r = firstData + i;
+    L.set(r, 1, i + 1, lstyle(r, 1, { h: "center" }));
+    L.set(r, 2, h.name.toUpperCase(), lstyle(r, 2));
+    months.forEach((_, mi) => {
+      for (let k = 0; k < 5; k++) {
+        const hit = sets[mi][k].has(normName(h.name));
+        L.set(r, monthStart[mi] + k, hit ? "X" : null, lstyle(r, monthStart[mi] + k, { h: "center" }));
+      }
+    });
+    L.set(r, 18, h.note || null, lstyle(r, 18, { wrap: true }));
+  });
+  L.set(totalRow, 2, "TOTAL", lstyle(totalRow, 2, { font: { b: true } }));
+  L.set(targetRow, 2, "TARGET KUNJUNGAN", lstyle(targetRow, 2, { font: { b: true } }));
+  months.forEach((_, mi) => {
+    for (let k = 0; k < 5; k++) {
+      const c = monthStart[mi] + k, col = XB.colL(c);
+      const count = hs.filter((h) => sets[mi][k].has(normName(h.name))).length;
+      L.set(totalRow, c, count, lstyle(totalRow, c, { h: "center", font: { b: true } }),
+        { formula: `COUNTIF(${col}${firstData}:${col}${lastData},"X")` });
+      L.set(targetRow, c, `${data.profile.target} RS`, lstyle(targetRow, c, { h: "center" }));
+    }
+  });
+  for (let r = 1; r <= targetRow; r++) L.height(r, 15.75);
+  L.cols([[1, 1, 5.29], [2, 2, 39.57], [3, 17, 7.5], [18, 18, 28]]);
+  L.print(`$A$1:$R$${targetRow}`, true);
+  sheets.push(L);
+
+  // ---------- Weekly report (1..5) ----------
+  const NAVY = "000080", BRICK = "953735", GREEN = "CCFF99", PEACH = "FFCC99";
+  const T = "Trebuchet MS";
+  const all4 = [thin, thin, thin, thin];
+  const hdr = (fill, extra = {}) => st.style({ font: { name: T, sz: 12, b: true, color: "FFFF00" }, fill, border: all4, h: "center", v: "center", wrap: true, ...extra });
+
+  for (let w = 1; w <= 5; w++) {
+    const S = XB.Sheet(`Weekly report (${w})`);
+    const wk = data.weeks[weekKey(expY, expM, w)] || { entries: [] };
+    S.set(1, 1, "WEEKLY PLANNING dan REPORT", st.style({ font: { name: T, sz: 24, b: true }, h: "center", v: "center" }));
+    S.merge(1, 1, 1, 9); S.height(1, 30.75);
+    const lab = st.style({ font: { name: T, sz: 12, b: true }, v: "center" });
+    [["Name", data.profile.name], ["Area", data.profile.area], ["Bulan", BULAN_CAP[expM - 1] + " " + expY], ["Minggu", String(w)]]
+      .forEach(([k, v], i) => { S.set(3 + i, 1, k, lab); S.set(3 + i, 2, `: ${v || ""}`, lab); S.height(3 + i, 18); });
+
+    for (let c = 1; c <= 9; c++) S.set(8, c, c === 1 ? "CALL PLAN" : c === 6 ? "CALL RESULT" : null, hdr(c <= 5 ? NAVY : BRICK));
+    S.merge(8, 1, 8, 5); S.merge(8, 6, 8, 9);
+    const top = { 1: "Date", 2: "Hospital/", 3: "User", 4: "Positions", 5: "Objective of Visit", 6: "Hospital/", 7: "User", 8: "Positions", 9: "Remarks (Follow Up & Evaluation)" };
+    const bot = { 2: "Dept/Venue", 3: "Name", 6: "Dept/Venue", 7: "Name" };
+    for (let c = 1; c <= 9; c++) {
+      const f = c <= 5 ? NAVY : BRICK;
+      S.set(9, c, top[c], hdr(f, bot[c] ? { border: [thin, thin, thin, null] } : {}));
+      S.set(10, c, bot[c] || null, hdr(f, bot[c] ? { border: [thin, thin, null, thin] } : {}));
+      if (!bot[c]) S.merge(9, c, 10, c);
+    }
+    S.height(8, 19.5); S.height(9, 19.5); S.height(10, 19.5);
+
+    // susun baris: dikelompokkan per tanggal, baris kosong di antara tanggal
+    const entries = [...wk.entries].sort((a, b) => (a.date || "9").localeCompare(b.date || "9"));
+    const rows = [];
+    let prevDate = undefined;
+    entries.forEach((e, idx) => {
+      if (idx > 0 && e.date !== prevDate) rows.push(null);
+      const lines = Math.max(1, (e.resRemarks || "").split("\n").filter((x) => x.trim()).length);
+      const rem = (e.resRemarks || "").split("\n").filter((x) => x.trim());
+      for (let k = 0; k < lines; k++) {
+        rows.push(k === 0
+          ? { date: e.date !== prevDate ? e.date : null, b: e.planHosp, c: e.planUser, d: e.planPos, e: e.planObj, f: e.resHosp, g: e.resUser, h: e.resPos, i: rem[0] || "" }
+          : { i: rem[k] });
+      }
+      prevDate = e.date;
+    });
+    const lastRow = Math.max(42, 11 + rows.length + 5);
+    const sDate = st.style({ font: { name: T, sz: 10 }, fill: GREEN, border: all4, h: "center", v: "center", wrap: true, date: true });
+    const sPlan = st.style({ font: { name: T, sz: 10 }, fill: GREEN, border: all4, h: "left", v: "center", wrap: true });
+    const sObj = st.style({ font: { name: T, sz: 12 }, fill: GREEN, border: all4, h: "left", v: "center", wrap: true });
+    const sRes = st.style({ font: { name: T, sz: 12 }, fill: PEACH, border: all4, h: "left", v: "center", wrap: true });
+    for (let r = 11; r <= lastRow; r++) {
+      const x = rows[r - 11] || {};
+      S.set(r, 1, x.date ? excelDate(x.date) : null, sDate);
+      S.set(r, 2, x.b || null, sPlan); S.set(r, 3, x.c || null, sPlan); S.set(r, 4, x.d || null, sPlan);
+      S.set(r, 5, x.e || null, sObj);
+      S.set(r, 6, x.f || null, sRes); S.set(r, 7, x.g || null, sRes); S.set(r, 8, x.h || null, sRes); S.set(r, 9, x.i || null, sRes);
+      const longest = Math.max(...["b", "c", "e", "f", "g", "i"].map((k) => String(x[k] || "").length));
+      S.height(r, longest > 34 ? 33 : 18.75);
+    }
+    S.cols([[1, 1, 15.86], [2, 2, 25.29], [3, 3, 27.14], [4, 4, 18], [5, 8, 32.57], [9, 9, 45.29]]);
+    S.print(`$A$1:$I$${lastRow}`, true);
+    sheets.push(S);
+  }
+  return XB.workbook(sheets, st);
+}
+
+
+
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const E = (o) => Object.assign({ id: uid(), date: "", planHosp: "", planUser: "", planPos: "", planObj: "", resHosp: "", resUser: "", resPos: "", resRemarks: "" }, o);
+function seedData() {
+  const t = new Date();
+  return { version: 1, profile: { name: "", area: "", target: 10, startYear: t.getFullYear(), startMonth: t.getMonth() + 1 }, hospitals: [], weeks: {}, lastBackup: null };
+}
+
+// ===== State & penyimpanan =====
+const KEY = "weekly-report-leo:v1";
+let S = seedData();
+let saveTimer = null;
+const $ = (id) => document.getElementById(id);
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (d && d.profile && d.hospitals && d.weeks) S = d;
+    }
+    $("saveState").textContent = "Tersimpan";
+  } catch (e) { $("saveState").textContent = "Penyimpanan tidak tersedia"; }
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+}
+function save(now) {
+  clearTimeout(saveTimer);
+  $("saveState").textContent = "Menyimpan…";
+  const run = () => {
+    try { localStorage.setItem(KEY, JSON.stringify(S)); $("saveState").textContent = "Tersimpan"; }
+    catch (e) { $("saveState").textContent = "Gagal menyimpan"; }
+  };
+  if (now) run(); else saveTimer = setTimeout(run, 400);
+}
+window.addEventListener("pagehide", () => save(true));
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") save(true); });
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("on"), 2600);
+}
+
+// ===== Kalender minggu (MG) =====
+const BLN_SHORT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+const HARI = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+const dim = (y, m) => new Date(y, m, 0).getDate();
+function weekRange(y, m, w) {
+  const off = (new Date(y, m - 1, 1).getDay() + 6) % 7; // Senin = 0
+  const start = Math.max(1, (w - 1) * 7 - off + 1);
+  const end = w === 5 ? dim(y, m) : Math.min(dim(y, m), w * 7 - off);
+  return start > dim(y, m) ? null : { start, end };
+}
+function weekOf(y, m, d) {
+  const off = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+  return Math.min(5, Math.ceil((d + off) / 7));
+}
+const iso = (y, m, d) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+function fmtDate(s) {
+  if (!s) return "Tanggal?";
+  const [y, m, d] = s.split("-").map(Number);
+  return `${HARI[new Date(y, m - 1, d).getDay()]} ${d} ${BLN_SHORT[m - 1]}`;
+}
+
+const today = new Date();
+let cur = { y: today.getFullYear(), m: today.getMonth() + 1, w: weekOf(today.getFullYear(), today.getMonth() + 1, today.getDate()) };
+let openId = null;
+
+const curWeek = () => {
+  const k = weekKey(cur.y, cur.m, cur.w);
+  if (!S.weeks[k]) S.weeks[k] = { entries: [] };
+  return S.weeks[k];
+};
+const masterSet = () => new Set(S.hospitals.map((h) => normName(h.name)));
+function weekCount(y, m, w) {
+  const v = visitedSet(S, y, m, w), ms = masterSet();
+  let n = 0; for (const x of v) if (ms.has(x)) n++;
+  return n;
+}
+
+// ===== Render: Laporan =====
+function renderHeader() {
+  $("who").textContent = `${S.profile.name || "Nama belum diisi"}, area ${S.profile.area || "belum diisi"}`;
+  $("monthLabel").textContent = `${BULAN_CAP[cur.m - 1]} ${cur.y}`;
+  $("download").textContent = `Download Excel ${BULAN_CAP[cur.m - 1]} ${cur.y}`;
+}
+function renderWeeks() {
+  const box = $("weeks"); box.innerHTML = "";
+  for (let w = 1; w <= 5; w++) {
+    const r = weekRange(cur.y, cur.m, w);
+    const b = document.createElement("button");
+    b.className = "wk"; b.setAttribute("aria-pressed", w === cur.w);
+    const n = weekCount(cur.y, cur.m, w), t = Number(S.profile.target) || 10;
+    b.innerHTML = `<b>MG ${w}</b><small>${r ? `${r.start}–${r.end}` : "—"}</small><div class="cnt ${n >= t ? "hit" : ""}">${n}/${t}</div>`;
+    b.setAttribute("aria-label", `Minggu ${w}, ${n} dari ${t} RS`);
+    b.onclick = () => { cur.w = w; openId = null; renderLaporan(); };
+    box.appendChild(b);
+  }
+  const r = weekRange(cur.y, cur.m, cur.w);
+  $("weekTitle").textContent = `Minggu ${cur.w}`;
+  $("weekRange").textContent = r ? `${r.start}–${r.end} ${BULAN_CAP[cur.m - 1]}, ${curWeek().entries.length} kunjungan` : "";
+}
+function renderDatalist() {
+  $("dl-rs").innerHTML = S.hospitals.map((h) => `<option value="${escH(h.name)}">`).join("");
+}
+const escH = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+function entrySummary(e) {
+  const hosp = e.resHosp || e.planHosp || "RS belum diisi";
+  const tag = e.resHosp ? "" : " (rencana)";
+  const note = (e.resRemarks || e.planObj || "").split("\n")[0];
+  return { hosp: hosp + tag, note: note || "Belum ada catatan" };
+}
+
+function renderEntries() {
+  const box = $("entries"); box.innerHTML = "";
+  const wk = curWeek();
+  if (!wk.entries.length) {
+    box.innerHTML = S.hospitals.length
+      ? `<div class="empty">Belum ada kunjungan di minggu ini. Tambahkan rencana atau hasil kunjungan.</div>`
+      : `<div class="empty">Aplikasi masih kosong. Kalau punya file cadangan, buka <button class="linkbtn" id="goSet">Pengaturan</button> lalu pilih Pulihkan dari file. Kalau belum, isi Daftar RS dulu.</div>`;
+    const g = document.getElementById("goSet"); if (g) g.onclick = () => document.querySelector('.tabs [data-tab="set"]').click();
+    return;
+  }
+  const list = [...wk.entries].sort((a, b) => (a.date || "9").localeCompare(b.date || "9"));
+  const r = weekRange(cur.y, cur.m, cur.w);
+  for (const e of list) {
+    const el = document.createElement("div");
+    el.className = "entry" + (openId === e.id ? " open" : "");
+    const sm = entrySummary(e);
+    el.innerHTML = `
+      <div class="ehead" tabindex="0" role="button" aria-expanded="${openId === e.id}">
+        <span class="d">${escH(fmtDate(e.date))}</span>
+        <div class="sum"><b data-s="h">${escH(sm.hosp)}</b><small data-s="n">${escH(sm.note)}</small></div>
+        <span class="chev" aria-hidden="true">▾</span>
+      </div>
+      <div class="ebody">
+        <div class="datefield">
+          <label class="f" style="margin:0">Tanggal <input type="date" data-k="date" value="${escH(e.date)}" min="${iso(cur.y, cur.m, r ? r.start : 1)}" max="${iso(cur.y, cur.m, r ? r.end : 28)}"></label>
+          <div class="warn" data-w="date">Tanggal ini di luar Minggu ${cur.w}. <button data-act="move">Pindahkan ke minggu yang sesuai</button></div>
+        </div>
+        <div class="half plan">
+          <h4>Call plan</h4>
+          <div class="grid2">
+            <label class="f full">Hospital / Dept / Venue<input list="dl-rs" data-k="planHosp" value="${escH(e.planHosp)}" autocomplete="off"></label>
+            <label class="f">User name<input data-k="planUser" value="${escH(e.planUser)}"></label>
+            <label class="f">Position<input list="dl-pos" data-k="planPos" value="${escH(e.planPos)}" autocomplete="off"></label>
+            <label class="f full">Objective of visit<textarea data-k="planObj" rows="2">${escH(e.planObj)}</textarea></label>
+          </div>
+        </div>
+        <div class="midbar">
+          <span class="hint" style="margin:0">Hasilnya sama dengan rencana?</span>
+          <button class="btn plain small" data-act="copy">Salin rencana ke hasil</button>
+        </div>
+        <div class="half result">
+          <h4>Call result</h4>
+          <div class="grid2">
+            <label class="f full">Hospital / Dept / Venue<input list="dl-rs" data-k="resHosp" value="${escH(e.resHosp)}" autocomplete="off"></label>
+            <div class="warn full" data-w="rs">Nama ini belum ada di Daftar RS, jadi tidak tercentang di LIST RS. <button data-act="addrs">Tambahkan ke Daftar RS</button></div>
+            <label class="f">User name<input data-k="resUser" value="${escH(e.resUser)}"></label>
+            <label class="f">Position<input list="dl-pos" data-k="resPos" value="${escH(e.resPos)}" autocomplete="off"></label>
+            <label class="f full">Remarks (follow up &amp; evaluation)<textarea data-k="resRemarks" rows="3">${escH(e.resRemarks)}</textarea>
+              <span class="hint">Tiap baris jadi satu baris di Excel.</span></label>
+          </div>
+        </div>
+        <div class="midbar" style="border-bottom:0">
+          <span></span>
+          <button class="btn danger small" data-act="del">Hapus kunjungan</button>
+        </div>
+      </div>`;
+    const head = el.querySelector(".ehead");
+    const toggle = () => {
+      openId = openId === e.id ? null : e.id;
+      box.querySelectorAll(".entry").forEach((x) => { x.classList.remove("open"); x.querySelector(".ehead").setAttribute("aria-expanded", "false"); });
+      if (openId === e.id) { el.classList.add("open"); head.setAttribute("aria-expanded", "true"); }
+    };
+    head.onclick = toggle;
+    head.onkeydown = (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); toggle(); } };
+
+    const checkWarn = () => {
+      const w = el.querySelector('[data-w="rs"]');
+      w.classList.toggle("on", !!e.resHosp.trim() && !masterSet().has(normName(e.resHosp)));
+      const dw = el.querySelector('[data-w="date"]');
+      let out = false;
+      if (e.date) {
+        const [y, m, d] = e.date.split("-").map(Number);
+        out = y !== cur.y || m !== cur.m || weekOf(y, m, d) !== cur.w;
+      }
+      dw.classList.toggle("on", out);
+    };
+    const refreshSum = () => {
+      const s2 = entrySummary(e);
+      el.querySelector('[data-s="h"]').textContent = s2.hosp;
+      el.querySelector('[data-s="n"]').textContent = s2.note;
+      el.querySelector(".d").textContent = fmtDate(e.date);
+    };
+    el.querySelectorAll("[data-k]").forEach((inp) => {
+      inp.addEventListener("input", () => {
+        e[inp.dataset.k] = inp.value;
+        refreshSum(); checkWarn();
+        if (inp.dataset.k === "resHosp") renderWeeks();
+        save();
+      });
+    });
+    el.querySelector('[data-act="copy"]').onclick = () => {
+      ["Hosp", "User", "Pos"].forEach((k) => { if (!e["res" + k]) e["res" + k] = e["plan" + k]; });
+      if (!e.resRemarks && e.planObj) e.resRemarks = e.planObj;
+      save(); renderLaporan(); toast("Rencana disalin ke hasil");
+    };
+    el.querySelector('[data-act="addrs"]').onclick = () => {
+      S.hospitals.push({ id: uid(), name: e.resHosp.trim(), note: "" });
+      save(); renderDatalist(); renderLaporan(); renderRS(); toast("Ditambahkan ke Daftar RS");
+    };
+    el.querySelector('[data-act="move"]').onclick = () => {
+      const [y, m, d] = e.date.split("-").map(Number);
+      const w = weekOf(y, m, d);
+      wk.entries = wk.entries.filter((x) => x.id !== e.id);
+      const k = weekKey(y, m, w);
+      if (!S.weeks[k]) S.weeks[k] = { entries: [] };
+      S.weeks[k].entries.push(e);
+      cur = { y, m, w }; openId = e.id; save(); renderLaporan();
+      toast(`Dipindah ke Minggu ${w} ${BULAN_CAP[m - 1]}`);
+    };
+    el.querySelector('[data-act="del"]').onclick = () => {
+      if (!confirm("Hapus kunjungan ini?")) return;
+      wk.entries = wk.entries.filter((x) => x.id !== e.id);
+      save(); renderLaporan();
+    };
+    checkWarn();
+    box.appendChild(el);
+  }
+}
+function renderLaporan() { renderHeader(); renderWeeks(); renderEntries(); }
+
+$("addEntry").onclick = () => {
+  const r = weekRange(cur.y, cur.m, cur.w);
+  const t = new Date();
+  let date = r ? iso(cur.y, cur.m, r.start) : "";
+  if (t.getFullYear() === cur.y && t.getMonth() + 1 === cur.m && weekOf(cur.y, cur.m, t.getDate()) === cur.w) date = iso(cur.y, cur.m, t.getDate());
+  const e = E({ date });
+  curWeek().entries.push(e);
+  openId = e.id; save(); renderLaporan();
+  const el = [...document.querySelectorAll(".entry")].find((x) => x.classList.contains("open"));
+  if (el) el.scrollIntoView({ block: "start", behavior: "smooth" });
+};
+$("prevM").onclick = () => { cur.m--; if (cur.m < 1) { cur.m = 12; cur.y--; } cur.w = 1; openId = null; renderLaporan(); };
+$("nextM").onclick = () => { cur.m++; if (cur.m > 12) { cur.m = 1; cur.y++; } cur.w = 1; openId = null; renderLaporan(); };
+
+// ===== Render: Daftar RS =====
+function renderRS() {
+  const box = $("rsList"); box.innerHTML = "";
+  S.hospitals.forEach((h, i) => {
+    const row = document.createElement("div");
+    row.className = "rsrow";
+    row.innerHTML = `
+      <div class="no">${i + 1}</div>
+      <div class="fields">
+        <input class="inp" data-k="name" value="${escH(h.name)}" aria-label="Nama RS ${i + 1}">
+        <input class="inp" data-k="note" value="${escH(h.note)}" placeholder="Keterangan (mis. Demo venti)" aria-label="Keterangan RS ${i + 1}">
+      </div>
+      <div class="acts">
+        <button data-a="up" aria-label="Naikkan">↑</button>
+        <button data-a="down" aria-label="Turunkan">↓</button>
+        <button data-a="del" aria-label="Hapus">✕</button>
+      </div>`;
+    row.querySelectorAll("input").forEach((inp) => inp.addEventListener("input", () => {
+      h[inp.dataset.k] = inp.value; save();
+      if (inp.dataset.k === "name") { renderDatalist(); renderMatrix(); }
+    }));
+    row.querySelectorAll("input").forEach((inp) => inp.addEventListener("change", () => renderMatrix()));
+    row.querySelector('[data-a="up"]').onclick = () => { if (i > 0) { [S.hospitals[i - 1], S.hospitals[i]] = [S.hospitals[i], S.hospitals[i - 1]]; save(); renderRS(); } };
+    row.querySelector('[data-a="down"]').onclick = () => { if (i < S.hospitals.length - 1) { [S.hospitals[i + 1], S.hospitals[i]] = [S.hospitals[i], S.hospitals[i + 1]]; save(); renderRS(); } };
+    row.querySelector('[data-a="del"]').onclick = () => {
+      if (!confirm(`Hapus ${h.name} dari daftar?`)) return;
+      S.hospitals.splice(i, 1); save(); renderRS(); renderDatalist();
+    };
+    box.appendChild(row);
+  });
+  renderMatrix();
+}
+function renderMatrix() {
+  const p = S.profile, months = periodMonths(Number(p.startYear), Number(p.startMonth));
+  const t = Number(p.target) || 10;
+  $("matrixTitle").textContent = `Rekap ${BULAN_CAP[months[0].m - 1]} – ${BULAN_CAP[months[2].m - 1]} ${months[2].y}`;
+  const sets = months.map((mo) => [1, 2, 3, 4, 5].map((w) => visitedSet(S, mo.y, mo.m, w)));
+  let h = `<table><tr><th rowspan="2">No</th><th rowspan="2">Rumah sakit</th>${months.map((mo) => `<th class="m" colspan="5">${BULAN[mo.m - 1]}</th>`).join("")}</tr><tr>`;
+  months.forEach(() => { for (let w = 1; w <= 5; w++) h += `<th>${w}</th>`; });
+  h += `</tr>`;
+  S.hospitals.forEach((hs, i) => {
+    h += `<tr><td>${i + 1}</td><td class="n">${escH(hs.name)}</td>`;
+    sets.forEach((ss) => ss.forEach((s) => { const x = s.has(normName(hs.name)); h += `<td class="${x ? "x" : ""}">${x ? "X" : ""}</td>`; }));
+    h += `</tr>`;
+  });
+  h += `<tr class="tot"><td></td><td class="n">Total</td>`;
+  sets.forEach((ss) => ss.forEach((s) => {
+    const n = S.hospitals.filter((hs) => s.has(normName(hs.name))).length;
+    h += `<td class="${n >= t ? "met" : n ? "under" : ""}">${n}</td>`;
+  }));
+  h += `</tr></table>`;
+  $("matrix").innerHTML = h;
+}
+$("addRs").onclick = () => {
+  const v = $("newRs").value.trim();
+  if (!v) return;
+  if (masterSet().has(normName(v))) { toast("RS itu sudah ada di daftar"); return; }
+  S.hospitals.push({ id: uid(), name: v, note: "" });
+  $("newRs").value = ""; save(); renderRS(); renderDatalist();
+};
+$("newRs").addEventListener("keydown", (ev) => { if (ev.key === "Enter") $("addRs").click(); });
+
+// ===== Render: Pengaturan =====
+function renderSettings() {
+  const p = S.profile;
+  $("pName").value = p.name || ""; $("pArea").value = p.area || ""; $("pTarget").value = p.target || 10;
+  const sel = $("pStart"); sel.innerHTML = "";
+  const base = today.getFullYear();
+  for (let y = base - 1; y <= base + 1; y++) for (let m = 1; m <= 12; m++) {
+    const o = document.createElement("option");
+    o.value = `${y}-${m}`; o.textContent = `${BULAN_CAP[m - 1]} ${y}`;
+    if (y === Number(p.startYear) && m === Number(p.startMonth)) o.selected = true;
+    sel.appendChild(o);
+  }
+}
+$("pName").oninput = (ev) => { S.profile.name = ev.target.value; renderHeader(); save(); };
+$("pArea").oninput = (ev) => { S.profile.area = ev.target.value; renderHeader(); save(); };
+$("pTarget").oninput = (ev) => { S.profile.target = Math.max(1, parseInt(ev.target.value) || 10); save(); renderWeeks(); };
+$("pStart").onchange = (ev) => { const [y, m] = ev.target.value.split("-").map(Number); S.profile.startYear = y; S.profile.startMonth = m; save(); renderMatrix(); };
+
+$("copyBackup").onclick = async () => {
+  const txt = JSON.stringify(S);
+  try { await navigator.clipboard.writeText(txt); toast("Cadangan disalin. Simpan di catatan HP."); }
+  catch (e) {
+    $("importBox").style.display = "block"; $("importText").value = txt; $("importText").select();
+    toast("Tidak bisa menyalin otomatis. Salin teks di kotak secara manual.");
+  }
+};
+function showLastBackup() {
+  const d = S.lastBackup ? new Date(S.lastBackup) : null;
+  const el = $("lastBackup");
+  if (!d) { el.textContent = "Belum pernah menyimpan file cadangan."; el.style.color = "var(--warn)"; return; }
+  const days = Math.floor((Date.now() - d) / 86400000);
+  el.textContent = `Cadangan terakhir: ${d.getDate()} ${BLN_SHORT[d.getMonth()]} ${d.getFullYear()}` + (days > 0 ? ` (${days} hari lalu)` : " (hari ini)");
+  el.style.color = days > 7 ? "var(--warn)" : "var(--muted)";
+}
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+$("saveBackupFile").onclick = () => {
+  const t = new Date();
+  S.lastBackup = t.toISOString(); save(true);
+  downloadBlob(new Blob([JSON.stringify(S)], { type: "application/json" }), `cadangan-weekly-report-${iso(t.getFullYear(), t.getMonth() + 1, t.getDate())}.json`);
+  showLastBackup(); toast("File cadangan disimpan di folder Download");
+};
+function applyImport(text) {
+  try {
+    const d = JSON.parse(text);
+    if (!d.profile || !Array.isArray(d.hospitals) || !d.weeks) throw new Error();
+    if ((S.hospitals.length || Object.values(S.weeks).some((w) => w.entries.length)) && !confirm("Data sekarang akan diganti dengan cadangan ini. Lanjut?")) return;
+    S = d; save(true); renderAll(); toast("Data dipulihkan");
+  } catch (e) { toast("File/teks cadangan tidak valid."); }
+}
+$("importFile").onchange = (ev) => {
+  const f = ev.target.files[0]; if (!f) return;
+  f.text().then(applyImport); ev.target.value = "";
+};
+$("showImport").onclick = () => { const b = $("importBox"); b.style.display = b.style.display === "none" ? "block" : "none"; };
+$("doImport").onclick = () => applyImport($("importText").value);
+$("clearVisits").onclick = () => {
+  if (!confirm("Hapus SEMUA kunjungan di semua minggu?")) return;
+  S.weeks = {}; save(true); renderAll(); toast("Semua kunjungan dihapus");
+};
+
+// ===== Tab =====
+document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach((x) => x.setAttribute("aria-selected", x === b));
+  document.querySelectorAll(".view").forEach((v) => v.classList.remove("on"));
+  $("v-" + b.dataset.tab).classList.add("on");
+  if (b.dataset.tab === "rs") renderRS();
+  if (b.dataset.tab === "lap") renderLaporan();
+  window.scrollTo(0, 0);
+});
+
+// ===== Download =====
+function makeFile() {
+  const bytes = buildWorkbook(S, cur.y, cur.m);
+  const name = `Weekly Report ${S.profile.name || ""} - ${BULAN_CAP[cur.m - 1]} ${cur.y}.xlsx`.replace(/\s+/g, " ");
+  return { name, blob: new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }) };
+}
+$("download").onclick = () => {
+  try { const f = makeFile(); downloadBlob(f.blob, f.name); toast(`${f.name} disimpan di folder Download`); }
+  catch (err) { toast("Gagal membuat file: " + err.message); }
+};
+$("share").onclick = async () => {
+  try {
+    const f = makeFile();
+    const file = new File([f.blob], f.name, { type: f.blob.type });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: f.name });
+    } else { downloadBlob(f.blob, f.name); toast("HP ini belum mendukung bagikan langsung, file diunduh"); }
+  } catch (err) { if (err.name !== "AbortError") toast("Gagal membagikan: " + err.message); }
+};
+
+function renderAll() { renderDatalist(); renderLaporan(); renderRS(); renderSettings(); showLastBackup(); }
+load();
+renderAll();
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+</script>
+
+</body>
+</html>
