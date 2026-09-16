@@ -1052,6 +1052,17 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 </script>
-
+<script>
+window.DRIVE_BACKUP = {
+  app: "WeeklyReport",
+  label: "Weekly Report",
+  keys: ["weekly-report-leo:v1"],
+  isEmpty: function (d) {
+    return !d || (!(d.hospitals || []).length && !Object.values(d.weeks || {}).some(function (w) { return w.entries && w.entries.length; }));
+  }
+};
+</script>
+<script src="drive-backup.js?v=1"></script>
+  
 </body>
 </html>
