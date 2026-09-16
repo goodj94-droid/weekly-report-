@@ -139,6 +139,26 @@
   .toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 9px 14px; border-radius: 8px; font-size: 13px; display: none; z-index: 10; max-width: 90%; text-align: center; }
   .toast.on { display: block; }
 
+
+  /* combo pilih + cari */
+  .fcombo { display: block; font-size: 12px; color: var(--muted); }
+  .combo { position: relative; margin-top: 3px; }
+  .combo input { display: block; width: 100%; padding: 9px 76px 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; min-height: 44px; font-size: 15px; color: var(--ink); scroll-margin-top: 12px; }
+  .combo .cbtn { position: absolute; top: 0; bottom: 0; width: 38px; border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 16px; }
+  .combo .open-btn { right: 0; }
+  .combo .clr-btn { right: 36px; display: none; font-size: 18px; }
+  .combo.has-val .clr-btn { display: block; }
+  .combo.open .open-btn { transform: rotate(180deg); }
+  .clist { display: none; margin-top: 4px; background: #fff; border: 1px solid #b9c1d6; border-radius: 10px; max-height: 280px; overflow-y: auto; box-shadow: 0 6px 18px rgba(20,35,122,.12); }
+  .combo.open + .clist { display: block; }
+  .clist button { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid #eef0f5; background: #fff; padding: 12px; font-size: 15px; color: var(--ink); cursor: pointer; }
+  .clist button:last-child { border-bottom: 0; }
+  .clist button.act, .clist button:active { background: var(--navy-soft); }
+  .clist button.sel { font-weight: 700; color: var(--navy); }
+  .clist button mark { background: #fff0a8; color: inherit; padding: 0; }
+  .clist button.add { color: var(--navy); font-weight: 700; }
+  .fcombo:has(.combo.open) + .warn { display: none; }
+  .clist .none { padding: 12px; color: var(--muted); font-size: 13px; }
   @media (max-width: 420px) {
     .grid2 { grid-template-columns: 1fr; }
     .wk small { font-size: 10px; }
@@ -240,11 +260,7 @@
 
 <div class="toast" id="toast" role="status"></div>
 
-<datalist id="dl-rs"></datalist>
-<datalist id="dl-pos">
-  <option value="ATEM"><option value="ICU"><option value="NICU"><option value="IGD"><option value="OK / IBS">
-  <option value="Management"><option value="Purchasing"><option value="Direktur"><option value="Kepala Ruang"><option value="Dokter Anestesi">
-</datalist>
+
 
 <script>
 // ===== Minimal XLSX writer (tanpa library) =====
@@ -635,7 +651,7 @@ function renderWeeks() {
   $("weekRange").textContent = r ? `${r.start}–${r.end} ${BULAN_CAP[cur.m - 1]}, ${curWeek().entries.length} kunjungan` : "";
 }
 function renderDatalist() {
-  $("dl-rs").innerHTML = S.hospitals.map((h) => `<option value="${escH(h.name)}">`).join("");
+  /* daftar RS dibaca langsung oleh combo */
 }
 const escH = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -644,6 +660,97 @@ function entrySummary(e) {
   const tag = e.resHosp ? "" : " (rencana)";
   const note = (e.resRemarks || e.planObj || "").split("\n")[0];
   return { hosp: hosp + tag, note: note || "Belum ada catatan" };
+}
+
+// ===== Combo: ketuk untuk lihat daftar, ketik untuk cari, ketuk untuk pilih =====
+const POS_DEFAULT = ["ATEM", "ICU", "NICU", "PICU", "IGD", "OK / IBS", "Management", "Purchasing", "Direktur", "Kepala Ruang", "Dokter Anestesi"];
+function comboSource(kind) {
+  if (kind === "rs") return S.hospitals.map((h) => h.name).filter((n) => n.trim());
+  const seen = new Map();
+  for (const p of POS_DEFAULT) seen.set(normName(p), p);
+  for (const w of Object.values(S.weeks)) for (const e of w.entries)
+    for (const p of [e.planPos, e.resPos]) if (p && p.trim() && !seen.has(normName(p))) seen.set(normName(p), p.trim());
+  return [...seen.values()];
+}
+function highlight(name, words) {
+  let out = escH(name);
+  for (const w of words) {
+    if (!w) continue;
+    const re = new RegExp("(" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "ig");
+    out = out.replace(re, "<mark>$1</mark>");
+  }
+  return out;
+}
+function setupCombo(wrap) {
+  const box = wrap.querySelector(".combo");
+  const inp = box.querySelector("input");
+  const list = wrap.querySelector(".clist");
+  const kind = box.dataset.combo;
+  let items = [], active = -1, showAll = false;
+
+  const refreshVal = () => box.classList.toggle("has-val", !!inp.value);
+  const close = () => { box.classList.remove("open"); active = -1; };
+  const choose = (val) => {
+    inp.value = val;
+    inp.dispatchEvent(new Event("input", { bubbles: true }));
+    refreshVal(); close(); inp.blur();
+  };
+  function render() {
+    const q = normName(inp.value);
+    const src = comboSource(kind);
+    const exact = src.some((n) => normName(n) === q);
+    const words = showAll || exact ? [] : q.split(" ").filter(Boolean);
+    items = src.filter((n) => { const x = normName(n); return words.every((w) => x.includes(w)); });
+    let html = items.map((n, i) => `<button type="button" role="option" data-i="${i}" class="${normName(n) === q ? "sel" : ""}${i === active ? " act" : ""}">${highlight(n, words)}</button>`).join("");
+    if (!items.length) {
+      html = kind === "rs"
+        ? (src.length ? `<div class="none">Tidak ada RS yang cocok.</div>` : `<div class="none">Daftar RS masih kosong.</div>`)
+        : `<div class="none">Tidak ada yang cocok. Ketik bebas saja.</div>`;
+    }
+    if (kind === "rs" && q && !exact && !items.length) html += `<button type="button" class="add" data-add="1">+ Tambah "${escH(inp.value.trim())}" ke Daftar RS</button>`;
+    list.innerHTML = html;
+  }
+  function open(all) {
+    showAll = !!all;
+    render();
+    box.classList.add("open");
+    setTimeout(() => inp.scrollIntoView({ block: "start", behavior: "smooth" }), 250);
+  }
+  // pointerdown + preventDefault: input tetap fokus, keyboard tidak menutup sebelum pilihan tercatat
+  list.addEventListener("pointerdown", (ev) => { if (ev.target.closest("button")) ev.preventDefault(); });
+  list.addEventListener("click", (ev) => {
+    const b = ev.target.closest("button"); if (!b) return;
+    if (b.dataset.add) {
+      const name = inp.value.trim();
+      if (!masterSet().has(normName(name))) { S.hospitals.push({ id: uid(), name, note: "" }); save(); toast("Ditambahkan ke Daftar RS"); }
+      choose(name); renderWeeks(); return;
+    }
+    choose(items[Number(b.dataset.i)]);
+  });
+  inp.addEventListener("focus", () => open(true));
+  inp.addEventListener("click", () => { if (!box.classList.contains("open")) open(true); });
+  inp.addEventListener("input", (ev) => { if (ev.isTrusted) { showAll = false; active = -1; box.classList.add("open"); render(); } refreshVal(); });
+  inp.addEventListener("blur", () => setTimeout(close, 150));
+  inp.addEventListener("keydown", (ev) => {
+    if (!box.classList.contains("open")) return;
+    if (ev.key === "ArrowDown") { active = Math.min(items.length - 1, active + 1); render(); ev.preventDefault(); }
+    else if (ev.key === "ArrowUp") { active = Math.max(0, active - 1); render(); ev.preventDefault(); }
+    else if (ev.key === "Enter") { if (items[active] !== undefined) choose(items[active]); else if (items.length === 1) choose(items[0]); ev.preventDefault(); }
+    else if (ev.key === "Escape") close();
+  });
+  const openBtn = box.querySelector(".open-btn");
+  openBtn.addEventListener("pointerdown", (ev) => ev.preventDefault());
+  openBtn.addEventListener("click", () => {
+    if (box.classList.contains("open")) { close(); inp.blur(); }
+    else { inp.focus({ preventScroll: true }); open(true); }
+  });
+  const clr = box.querySelector(".clr-btn");
+  clr.addEventListener("pointerdown", (ev) => ev.preventDefault());
+  clr.addEventListener("click", () => {
+    inp.value = ""; inp.dispatchEvent(new Event("input", { bubbles: true }));
+    refreshVal(); inp.focus({ preventScroll: true }); open(true);
+  });
+  refreshVal();
 }
 
 function renderEntries() {
@@ -676,9 +783,9 @@ function renderEntries() {
         <div class="half plan">
           <h4>Call plan</h4>
           <div class="grid2">
-            <label class="f full">Hospital / Dept / Venue<input list="dl-rs" data-k="planHosp" value="${escH(e.planHosp)}" autocomplete="off"></label>
+            <div class="fcombo full">Hospital / Dept / Venue<div class="combo" data-combo="rs"><input data-k="planHosp" value="${escH(e.planHosp)}" autocomplete="off" autocapitalize="words" placeholder="Ketik atau pilih RS"><button type="button" class="cbtn clr-btn" aria-label="Kosongkan" tabindex="-1">×</button><button type="button" class="cbtn open-btn" aria-label="Tampilkan daftar" tabindex="-1">▾</button></div><div class="clist" role="listbox"></div></div>
             <label class="f">User name<input data-k="planUser" value="${escH(e.planUser)}"></label>
-            <label class="f">Position<input list="dl-pos" data-k="planPos" value="${escH(e.planPos)}" autocomplete="off"></label>
+            <div class="fcombo">Position<div class="combo" data-combo="pos"><input data-k="planPos" value="${escH(e.planPos)}" autocomplete="off" autocapitalize="words" placeholder="Pilih / ketik"><button type="button" class="cbtn clr-btn" aria-label="Kosongkan" tabindex="-1">×</button><button type="button" class="cbtn open-btn" aria-label="Tampilkan daftar" tabindex="-1">▾</button></div><div class="clist" role="listbox"></div></div>
             <label class="f full">Objective of visit<textarea data-k="planObj" rows="2">${escH(e.planObj)}</textarea></label>
           </div>
         </div>
@@ -689,10 +796,10 @@ function renderEntries() {
         <div class="half result">
           <h4>Call result</h4>
           <div class="grid2">
-            <label class="f full">Hospital / Dept / Venue<input list="dl-rs" data-k="resHosp" value="${escH(e.resHosp)}" autocomplete="off"></label>
+            <div class="fcombo full">Hospital / Dept / Venue<div class="combo" data-combo="rs"><input data-k="resHosp" value="${escH(e.resHosp)}" autocomplete="off" autocapitalize="words" placeholder="Ketik atau pilih RS"><button type="button" class="cbtn clr-btn" aria-label="Kosongkan" tabindex="-1">×</button><button type="button" class="cbtn open-btn" aria-label="Tampilkan daftar" tabindex="-1">▾</button></div><div class="clist" role="listbox"></div></div>
             <div class="warn full" data-w="rs">Nama ini belum ada di Daftar RS, jadi tidak tercentang di LIST RS. <button data-act="addrs">Tambahkan ke Daftar RS</button></div>
             <label class="f">User name<input data-k="resUser" value="${escH(e.resUser)}"></label>
-            <label class="f">Position<input list="dl-pos" data-k="resPos" value="${escH(e.resPos)}" autocomplete="off"></label>
+            <div class="fcombo">Position<div class="combo" data-combo="pos"><input data-k="resPos" value="${escH(e.resPos)}" autocomplete="off" autocapitalize="words" placeholder="Pilih / ketik"><button type="button" class="cbtn clr-btn" aria-label="Kosongkan" tabindex="-1">×</button><button type="button" class="cbtn open-btn" aria-label="Tampilkan daftar" tabindex="-1">▾</button></div><div class="clist" role="listbox"></div></div>
             <label class="f full">Remarks (follow up &amp; evaluation)<textarea data-k="resRemarks" rows="3">${escH(e.resRemarks)}</textarea>
               <span class="hint">Tiap baris jadi satu baris di Excel.</span></label>
           </div>
@@ -760,6 +867,7 @@ function renderEntries() {
       wk.entries = wk.entries.filter((x) => x.id !== e.id);
       save(); renderLaporan();
     };
+    el.querySelectorAll(".fcombo").forEach(setupCombo);
     checkWarn();
     box.appendChild(el);
   }
