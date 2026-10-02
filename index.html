@@ -902,6 +902,8 @@ function renderEntries() {
       S.hospitals.push({ id: uid(), name: e.resHosp.trim(), note: "" });
       save(); renderDatalist(); renderLaporan(); renderRS(); toast("Ditambahkan ke Daftar RS");
     };
+    // begitu tanggal selesai diubah, daftar diurutkan ulang
+    el.querySelector('[data-k="date"]').addEventListener("change", () => { save(true); renderLaporan(); });
     const mv = el.querySelector("[data-move]");
     fillWeekOptions(mv);
     mv.onchange = () => {
