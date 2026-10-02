@@ -595,14 +595,38 @@ function toast(msg) {
 const BLN_SHORT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 const HARI = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
 const dim = (y, m) => new Date(y, m, 0).getDate();
-function weekRange(y, m, w) {
+// Minggu dihitung Senin–Minggu. Kalau tanggal 1 jatuh Sabtu/Minggu, hari itu
+// ikut MG 1 bersama minggu kerja pertama, bukan jadi MG 1 sendiri tanpa hari kerja.
+function wkInfo(y, m) {
   const off = (new Date(y, m - 1, 1).getDay() + 6) % 7; // Senin = 0
-  const start = Math.max(1, (w - 1) * 7 - off + 1);
-  const end = w === 5 ? dim(y, m) : Math.min(dim(y, m), w * 7 - off);
-  return start > dim(y, m) ? null : { start, end };
+  return { off, fm: off >= 5 ? 8 - off : 0 }; // fm = tanggal Senin pertama (0 = tidak digeser)
+}
+function weekRange(y, m, w) {
+  const { off, fm } = wkInfo(y, m), last = dim(y, m);
+  let start, end;
+  if (fm) {
+    start = w === 1 ? 1 : fm + (w - 1) * 7;
+    end = w === 5 ? last : Math.min(last, (w === 1 ? fm + 6 : fm + (w - 1) * 7 + 6));
+  } else {
+    start = Math.max(1, (w - 1) * 7 - off + 1);
+    end = w === 5 ? last : Math.min(last, w * 7 - off);
+  }
+  return start > last ? null : { start, end };
+}
+// rentang hari kerja (Senin–Jumat) di dalam minggu itu, dipotong batas bulan
+function workRange(y, m, w) {
+  const r = weekRange(y, m, w);
+  if (!r) return null;
+  let start = null, end = null;
+  for (let d = r.start; d <= r.end; d++) {
+    const wd = new Date(y, m - 1, d).getDay(); // 0 Minggu, 6 Sabtu
+    if (wd >= 1 && wd <= 5) { if (start === null) start = d; end = d; }
+  }
+  return start === null ? r : { start, end };
 }
 function weekOf(y, m, d) {
-  const off = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+  const { off, fm } = wkInfo(y, m);
+  if (fm) return d < fm ? 1 : Math.min(5, Math.ceil((d - fm + 1) / 7));
   return Math.min(5, Math.ceil((d + off) / 7));
 }
 const iso = (y, m, d) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
@@ -610,6 +634,31 @@ function fmtDate(s) {
   if (!s) return "Tanggal?";
   const [y, m, d] = s.split("-").map(Number);
   return `${HARI[new Date(y, m - 1, d).getDay()]} ${d} ${BLN_SHORT[m - 1]}`;
+}
+
+function dateWeek(d) {
+  const [y, m, dd] = d.split("-").map(Number);
+  return [y, m, weekOf(y, m, dd)];
+}
+function weekLabel(y, m, w) {
+  const r = workRange(y, m, w);
+  return `${BULAN_CAP[m - 1]} MG ${w}${r ? ` (${r.start}–${r.end})` : ""}`;
+}
+// daftar minggu bulan ini plus bulan sebelum & sesudahnya, untuk memindahkan kunjungan
+function fillWeekOptions(sel) {
+  const list = [];
+  for (const off of [-1, 0, 1]) {
+    let m = cur.m + off, y = cur.y;
+    if (m < 1) { m = 12; y--; }
+    if (m > 12) { m = 1; y++; }
+    for (let w = 1; w <= 5; w++) if (weekRange(y, m, w)) list.push([y, m, w]);
+  }
+  sel.innerHTML = list.map(([y, m, w]) => {
+    const v = `${y}-${m}-${w}`;
+    const on = y === cur.y && m === cur.m && w === cur.w;
+    return `<option value="${v}"${on ? " selected" : ""}>${weekLabel(y, m, w)}</option>`;
+  }).join("");
+  sel.value = `${cur.y}-${cur.m}-${cur.w}`;
 }
 
 const today = new Date();
@@ -637,7 +686,7 @@ function renderHeader() {
 function renderWeeks() {
   const box = $("weeks"); box.innerHTML = "";
   for (let w = 1; w <= 5; w++) {
-    const r = weekRange(cur.y, cur.m, w);
+    const r = workRange(cur.y, cur.m, w);
     const b = document.createElement("button");
     b.className = "wk"; b.setAttribute("aria-pressed", w === cur.w);
     const n = weekCount(cur.y, cur.m, w), t = Number(S.profile.target) || 10;
@@ -646,7 +695,7 @@ function renderWeeks() {
     b.onclick = () => { cur.w = w; openId = null; renderLaporan(); };
     box.appendChild(b);
   }
-  const r = weekRange(cur.y, cur.m, cur.w);
+  const r = workRange(cur.y, cur.m, cur.w);
   $("weekTitle").textContent = `Minggu ${cur.w}`;
   $("weekRange").textContent = r ? `${r.start}–${r.end} ${BULAN_CAP[cur.m - 1]}, ${curWeek().entries.length} kunjungan` : "";
 }
@@ -777,8 +826,9 @@ function renderEntries() {
       </div>
       <div class="ebody">
         <div class="datefield">
-          <label class="f" style="margin:0">Tanggal <input type="date" data-k="date" value="${escH(e.date)}" min="${iso(cur.y, cur.m, r ? r.start : 1)}" max="${iso(cur.y, cur.m, r ? r.end : 28)}"></label>
-          <div class="warn" data-w="date">Tanggal ini di luar Minggu ${cur.w}. <button data-act="move">Pindahkan ke minggu yang sesuai</button></div>
+          <label class="f" style="margin:0">Tanggal <input type="date" data-k="date" value="${escH(e.date)}"></label>
+          <label class="f" style="margin:0;flex:1">Masuk laporan <select data-move></select></label>
+          <div class="hint" data-w="date" style="width:100%"></div>
         </div>
         <div class="half plan">
           <h4>Call plan</h4>
@@ -827,7 +877,7 @@ function renderEntries() {
         const [y, m, d] = e.date.split("-").map(Number);
         out = y !== cur.y || m !== cur.m || weekOf(y, m, d) !== cur.w;
       }
-      dw.classList.toggle("on", out);
+      dw.textContent = out ? `Tanggalnya masuk ${weekLabel(...dateWeek(e.date))}, tapi tetap dilaporkan di ${weekLabel(cur.y, cur.m, cur.w)}.` : "";
     };
     const refreshSum = () => {
       const s2 = entrySummary(e);
@@ -852,15 +902,16 @@ function renderEntries() {
       S.hospitals.push({ id: uid(), name: e.resHosp.trim(), note: "" });
       save(); renderDatalist(); renderLaporan(); renderRS(); toast("Ditambahkan ke Daftar RS");
     };
-    el.querySelector('[data-act="move"]').onclick = () => {
-      const [y, m, d] = e.date.split("-").map(Number);
-      const w = weekOf(y, m, d);
+    const mv = el.querySelector("[data-move]");
+    fillWeekOptions(mv);
+    mv.onchange = () => {
+      const [y, m, w] = mv.value.split("-").map(Number);
       wk.entries = wk.entries.filter((x) => x.id !== e.id);
       const k = weekKey(y, m, w);
       if (!S.weeks[k]) S.weeks[k] = { entries: [] };
       S.weeks[k].entries.push(e);
       cur = { y, m, w }; openId = e.id; save(); renderLaporan();
-      toast(`Dipindah ke Minggu ${w} ${BULAN_CAP[m - 1]}`);
+      toast(`Dipindah ke ${weekLabel(y, m, w)}`);
     };
     el.querySelector('[data-act="del"]').onclick = () => {
       if (!confirm("Hapus kunjungan ini?")) return;
@@ -875,7 +926,7 @@ function renderEntries() {
 function renderLaporan() { renderHeader(); renderWeeks(); renderEntries(); }
 
 $("addEntry").onclick = () => {
-  const r = weekRange(cur.y, cur.m, cur.w);
+  const r = workRange(cur.y, cur.m, cur.w);
   const t = new Date();
   let date = r ? iso(cur.y, cur.m, r.start) : "";
   if (t.getFullYear() === cur.y && t.getMonth() + 1 === cur.m && weekOf(cur.y, cur.m, t.getDate()) === cur.w) date = iso(cur.y, cur.m, t.getDate());
@@ -1052,17 +1103,6 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 </script>
-<script>
-window.DRIVE_BACKUP = {
-  app: "WeeklyReport",
-  label: "Weekly Report",
-  keys: ["weekly-report-leo:v1"],
-  isEmpty: function (d) {
-    return !d || (!(d.hospitals || []).length && !Object.values(d.weeks || {}).some(function (w) { return w.entries && w.entries.length; }));
-  }
-};
-</script>
-<script src="drive-backup.js?v=1"></script>
-  
+
 </body>
 </html>
